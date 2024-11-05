@@ -14,8 +14,8 @@ app.permanent_session_lifetime = timedelta(minutes=30)
 app.wsgi_app = ProxyFix(app.wsgi_app)
 
 # Spotify credentials
-CLIENT_ID = '1ad5966625254e428757df1401b110c7'
-CLIENT_SECRET = 'a974e67a80ba49b18369efa83a918056'
+CLIENT_ID = 'your_client_id'
+CLIENT_SECRET = 'your_client_secret'
 REDIRECT_URI = 'http://localhost:8888/callback'
 SCOPE = 'playlist-modify-public'
 sp_oauth = SpotifyOAuth(
@@ -168,5 +168,3 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True, port=8888)
-
-# .\venv\Scripts\activate
