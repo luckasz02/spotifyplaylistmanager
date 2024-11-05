@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Spotify Playlist Manager</title>
+        <link
+          rel="stylesheet"
+          type="text/css"
+          href="{{ url_for('static', filename='style.css') }}"
+        />
+        <link rel="icon" type="image/png" href="static/favicon.png" />
+      </head>
+      <body onload="checkLoginState()">
+        <button id="logoutButton" onclick="logout()">Logout</button>
+      </body>
+    </html>
+    <title>Spotify Playlist Manager</title>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body onload="checkLoginState()">
+    <div class="container">
+      <h2>Spotify Playlist Manager</h2>
+      <div id="userInfo" style="display: none; margin-bottom: 15px">
+        Welcome, <span id="username"></span>
+      </div>
+      <div id="loginSection">
+        <button id="loginButton" onclick="loginWithSpotify()">
+          Login with Spotify
+        </button>
+      </div>
+      <div id="playlistManager" style="display: none">
+        <input type="text" id="trackName" placeholder="Enter track name" />
+        <button onclick="searchTracks()">Search Tracks</button>
+        <select
+          id="trackList"
+          multiple
+          style="width: 300px; height: 300px"
+        ></select>
+        <br />
+        <select id="playlistList" style="width: 300px">
+          <option value="" disabled selected>Select a playlist</option>
+        </select>
+        <button onclick="addToPlaylist()">Add to Playlist</button>
+        <button onclick="shufflePlaylist()">Shuffle Playlist</button>
+      </div>
+    </div>
+
+    <script>
+      function loginWithSpotify() {
+        window.location.href = "/login";
+      }
+
+      // Check if the user is logged in and display the appropriate sections
+      async function checkLoginState() {
+        const response = await fetch("/check_login");
+        const isLoggedIn = await response.json();
+
+        const loginSection = document.getElementById("loginSection");
+        const playlistManager = document.getElementById("playlistManager");
+
+        if (isLoggedIn) {
+          loginSection.style.display = "none";
+          playlistManager.style.display = "block";
+          logoutButton.style.display = "block";
+          loadUserPlaylists();
+          loadUserInfo(); // Load and display user info when logged in
+        } else {
+          loginSection.style.display = "block";
+          playlistManager.style.display = "none";
+          logoutButton.style.display = "none";
+          document.getElementById("userInfo").style.display = "none"; // Hide user info when logged out
+        }
+      }
+
+      // Load the user's information into the page
+      async function loadUserInfo() {
+        const response = await fetch("/get_user_info");
+        const userInfo = await response.json();
+
+        if (response.ok) {
+          const userInfoDiv = document.getElementById("userInfo");
+          const usernameElement = document.getElementById("username");
+          usernameElement.textContent =
+            userInfo.display_name || userInfo.email || "User";
+          userInfoDiv.style.display = "block"; // Ensure display is set to 'block' on login
+        } else {
+          console.error("Failed to load user info:", userInfo.error);
+        }
+      }
+
+      // Load the user's playlists into the dropdown
+      async function loadUserPlaylists() {
+        const playlistList = document.getElementById("playlistList");
+        playlistList.innerHTML = ""; // Clear old playlists
+
+        const response = await fetch(
+          `/get_user_playlists?timestamp=${new Date().getTime()}`
+        );
+        if (response.ok) {
+          const playlists = await response.json();
+          playlists.forEach((playlist) => {
+            const option = document.createElement("option");
+            option.value = playlist.id;
+            option.text = playlist.name;
+            playlistList.appendChild(option);
+          });
+        } else {
+          alert("Failed to load playlists. Please try logging in again.");
+        }
+      }
+
+      // Search for tracks and display the results in the dropdown
+      async function searchTracks() {
+        const trackName = document.getElementById("trackName").value;
+        const response = await fetch("/search_tracks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ track_name: trackName }),
+        });
+        const tracks = await response.json();
+        const trackList = document.getElementById("trackList");
+
+        // Append only the first two results of the new search to the list
+        for (let i = 0; i < tracks.length && i < 1; i++) {
+          const option = document.createElement("option");
+          option.value = tracks[i].id;
+          option.text = tracks[i].name;
+          trackList.appendChild(option);
+        }
+      }
+
+      // Add the selected tracks to the selected playlist
+      async function addToPlaylist() {
+        const selectedOptions = Array.from(
+          document.getElementById("trackList").selectedOptions
+        );
+        const trackIds = selectedOptions.map((option) => option.value);
+        const playlistId = document.getElementById("playlistList").value;
+        await fetch("/add_to_playlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            playlist_id: playlistId,
+            track_ids: trackIds,
+          }),
+        });
+        alert("Tracks added to playlist successfully");
+      }
+
+      // Suffles the selected playlist
+      async function shufflePlaylist() {
+        const playlistId = document.getElementById("playlistList").value;
+        if (!playlistId) {
+          alert("Please select a playlist first.");
+          return;
+        }
+
+        const response = await fetch("/shuffle_playlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ playlist_id: playlistId }),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+          alert(result.message);
+        } else {
+          alert("Error: " + result.error);
+        }
+      }
+
+      // Logout the user
+      function logout() {
+        fetch("/logout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        }).then(() => {
+          document.getElementById("playlistList").innerHTML = "";
+          window.location.href = "/";
+        });
+      }
+
+      window.onload = checkLoginState;
+    </script>
+  </body>
+</html>
